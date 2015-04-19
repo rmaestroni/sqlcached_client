@@ -1,5 +1,2 @@
-require "sqlcached_client/version"
-
-module SqlcachedClient
-  # Your code goes here...
-end
+require 'sqlcached_client/version'
+require 'sqlcached_client/entity'
