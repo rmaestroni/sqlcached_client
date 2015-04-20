@@ -13,6 +13,7 @@ module SqlcachedClient
       super(attributes)
     end
 
+
     class << self
       attr_reader :query_id
 
@@ -65,26 +66,46 @@ module SqlcachedClient
             instance_variable_set(
               memoize_var,
               foreign_entity.where(Hash[ join_attributes.map do |attr_names|
-                [ attr_names[0], send(attr_names[1]) ]
+                attr_value =
+                  if attr_names[1].is_a?(Symbol)
+                    send(attr_names[1])
+                  else
+                    attr_names[1]
+                  end
+                [ attr_names[0], attr_value ]
               end ])
             )
         end
+        # save the newly created association
+        register_association(accessor_name)
       end
 
       def has_one(accessor_name, options)
-        plural_accessor_name = accessor_name.to_s.pluralize
-        has_many(plural_accessor_name, options)
+        plural_accessor_name = "s_#{accessor_name}".to_s.pluralize
+        class_name = accessor_name.to_s.camelize
+        has_many(plural_accessor_name, { class_name: class_name }.merge(options))
         define_method(accessor_name) do
           send(plural_accessor_name).first
         end
       end
+
+      def registered_associations
+        @registered_associations || []
+      end
+
+    private
+
+      def register_association(association_name)
+        @registered_associations ||= []
+        @registered_associations << association_name.to_sym
+      end
     end # class << self
 
-    def to_s
-      if respond_to?(:id)
-        "#<#{self.class.name}: id: #{id}>"
-      else
-        super
+    def load_associations(load_recursively = false)
+      self.class.registered_associations.each do |a_name|
+        associated = send(a_name)
+        associated.load_associations(true) if load_recursively
+        a_name
       end
     end
   end # class Entity

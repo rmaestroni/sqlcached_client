@@ -19,5 +19,15 @@ module SqlcachedClient
     def [](i)
       resultset[i]
     end
+
+    def uncache
+      # TODO
+    end
+
+    def load_associations(load_recursively = false)
+      resultset.each do |entity|
+        entity.load_associations(load_recursively)
+      end
+    end
   end
 end
