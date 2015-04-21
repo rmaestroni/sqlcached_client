@@ -43,8 +43,15 @@ module SqlcachedClient
         end
       end
 
-      def where(params)
-        Resultset.new(self, server.run_query(query_id, query, params))
+      def where(params, dry_run = false)
+        request = server.format_request(query_id, query, params)
+        if dry_run
+          request
+        else
+          data = server.run_query(server.build_request_body([request]))
+          data = data[0] if data.is_a?(Array)
+          Resultset.new(self, data)
+        end
       end
 
       def has_many(accessor_name, options)
@@ -54,27 +61,40 @@ module SqlcachedClient
           else
             accessor_name.to_s.singularize.camelize
           end
+        # the query to run to get the data
+        association = -> (this, foreign_entity, join_attributes, dry_run) {
+          foreign_entity.where(Hash[ join_attributes.map do |attr_names|
+            attr_value =
+              if attr_names[1].is_a?(Symbol)
+                this.send(attr_names[1])
+              else
+                attr_names[1]
+              end
+            [ attr_names[0], attr_value ]
+          end ], dry_run)
+        }
         # get the attributes to define the foreign scope
         join_attributes = (options[:where] || []).to_a
+        # memoized the associated resultset
+        memoize_var = "@has_many_#{accessor_name}"
         # define the accessor method
-        define_method(accessor_name) do
+        define_method(accessor_name) do |dry_run = false|
           # get the associated entity class
           foreign_entity = Module.const_get(foreign_class_name)
-          # memoized the associated resultset
-          memoize_var = "@has_many_#{accessor_name}"
-          instance_variable_get(memoize_var) ||
-            instance_variable_set(
-              memoize_var,
-              foreign_entity.where(Hash[ join_attributes.map do |attr_names|
-                attr_value =
-                  if attr_names[1].is_a?(Symbol)
-                    send(attr_names[1])
-                  else
-                    attr_names[1]
-                  end
-                [ attr_names[0], attr_value ]
-              end ])
-            )
+          if dry_run
+            association.call(self, foreign_entity, join_attributes, true)
+          else
+            instance_variable_get(memoize_var) ||
+              instance_variable_set(memoize_var,
+                association.call(self, foreign_entity, join_attributes, false))
+          end
+        end
+        # define the setter method
+        define_method("#{accessor_name}=") do |array|
+          # get the associated entity class
+          foreign_entity = Module.const_get(foreign_class_name)
+          instance_variable_set(memoize_var,
+            Resultset.new(foreign_entity, array))
         end
         # save the newly created association
         register_association(accessor_name)
@@ -101,12 +121,35 @@ module SqlcachedClient
       end
     end # class << self
 
-    def load_associations(load_recursively = false)
-      self.class.registered_associations.each do |a_name|
-        associated = send(a_name)
-        associated.load_associations(true) if load_recursively
+    def get_association_requests
+      self.class.registered_associations.map do |a_name|
+        send(a_name, true)
+      end
+    end
+
+    def set_associations_data(associations_data)
+      self.class.registered_associations.map.with_index do |a_name, i|
+        send("#{a_name}=", associations_data[i])
         a_name
       end
     end
+
+    def load_associations(load_recursively = false)
+      klass = self.class
+      data = klass.server.run_query(
+        klass.server.build_request_body(
+          get_association_requests))
+      # set each association
+      associations = set_associations_data(data)
+      if load_recursively
+        associations.map do |a_name|
+          send(a_name).load_associations(true)
+          a_name
+        end
+      else
+        associations
+      end
+    end
+
   end # class Entity
 end

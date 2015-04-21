@@ -25,8 +25,15 @@ module SqlcachedClient
     end
 
     def load_associations(load_recursively = false)
-      resultset.each do |entity|
-        entity.load_associations(load_recursively)
+      data = entity_class.server.run_query(
+        entity_class.server.build_request_body(
+          resultset.map do |entity|
+            entity.get_association_requests
+          end ))
+      data.map.with_index do |entity_assoc_data, i|
+        resultset[i].set_associations_data(entity_assoc_data)
+        resultset[i].load_associations(true) if load_recursively
+        resultset[i]
       end
     end
   end

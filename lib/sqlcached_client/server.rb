@@ -11,48 +11,66 @@ module SqlcachedClient
       @port = config[:port]
     end
 
-    def run_query(query_id, query, params)
+
+    def self.log_request(url)
+      @logged_urls ||= []
+      @logged_urls << url
+    end
+
+
+    def self.logged_requests
+      @logged_urls
+    end
+
+
+    def run_query(http_req_body)
       url = server_url
       Net::HTTP.start(url.host, url.port) do |http|
-        get_resp = get_db_data(http, query_id, params)
-        if 200 == get_resp[:status]
-          get_resp[:body]
-        elsif 404 == get_resp[:status]
-          create_query_template(http, query_id, query)
-          # reiterate get_db_data request
-          get_resp = get_db_data(http, query_id, params)
-          if 200 == get_resp[:status]
-            get_resp[:body]
-          else
-            raise "Got http response #{get_resp[:status]} from server - #{get_resp[:body].inspect}"
-          end
+        puts http_req_body
+        req = Net::HTTP::Post.new(data_batch_url)
+        req.set_content_type('application/json')
+        req.body = http_req_body.to_json
+        resp = http.request(req)
+        if 'application/json' == resp['Content-Type']
+          resp_body = parse_response_body(JSON.parse(resp.body))
         else
-          raise "Got http response #{get_resp[:status]} from server - #{get_resp[:body].inspect}"
+          resp_body = resp.body
+        end
+        if 200 == resp.code.to_i
+          resp_body
+        else
+          raise "Got http response #{resp.code} from server - #{resp_body}"
         end
       end
     end
 
-    def get_db_data(http, query_id, params)
-      d_url = data_url(query_id, params)
-      resp = http.request(Net::HTTP::Get.new(d_url))
-      if 'application/json' == resp['Content-Type']
-        resp_body = JSON.parse(resp.body)
+
+    def parse_response_body(body)
+      if body.is_a?(Array)
+        body.map { |item| parse_response_body(item) }
+      elsif body.is_a?(Hash)
+        if (resultset = body['resultset']).is_a?(String)
+          JSON.parse(resultset)
+        else
+          resultset
+        end
       else
-        resp_body = resp.body
+        body
       end
-      { status: resp.code.to_i, body: resp_body }
     end
 
-    def create_query_template(http, query_id, query_template)
-      req = Net::HTTP::Post.new(query_template_url)
-      req.set_form_data(id: query_id, query: query_template)
-      resp = http.request(req)
-      if 'application/json' == resp['Content-Type']
-        resp_body = JSON.parse(resp.body)
-      else
-        resp_body = resp.body
-      end
-      { status: resp.code.to_i, body: resp_body }
+
+    def build_request_body(ary)
+      { batch: ary }
+    end
+
+
+    def format_request(query_id, query_template, params)
+      {
+        queryId: query_id,
+        queryTemplate: query_template,
+        queryParams: params
+      }
     end
 
   private
@@ -61,17 +79,9 @@ module SqlcachedClient
       URI("http://#{host}:#{port}")
     end
 
-    def data_url(query_id, params)
+    def data_batch_url
       url = server_url
-      url.path = "/data/#{query_id}"
-      query_params = params.map { |k, v| ["query_params[#{k}]", v] }
-      url.query = URI.encode_www_form(query_params.to_h)
-      url
-    end
-
-    def query_template_url
-      url = server_url
-      url.path = "/queries"
+      url.path = "/data-batch"
       url
     end
   end
