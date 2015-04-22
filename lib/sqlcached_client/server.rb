@@ -26,7 +26,6 @@ module SqlcachedClient
     def run_query(http_req_body)
       url = server_url
       Net::HTTP.start(url.host, url.port) do |http|
-        puts http_req_body
         req = Net::HTTP::Post.new(data_batch_url)
         req.set_content_type('application/json')
         req.body = http_req_body.to_json

@@ -130,24 +130,12 @@ module SqlcachedClient
     def set_associations_data(associations_data)
       self.class.registered_associations.map.with_index do |a_name, i|
         send("#{a_name}=", associations_data[i])
-        a_name
       end
     end
 
-    def load_associations(load_recursively = false)
-      klass = self.class
-      data = klass.server.run_query(
-        klass.server.build_request_body(
-          get_association_requests))
-      # set each association
-      associations = set_associations_data(data)
-      if load_recursively
-        associations.map do |a_name|
-          send(a_name).load_associations(true)
-          a_name
-        end
-      else
-        associations
+    def get_associations
+      self.class.registered_associations.map do |a_name|
+        send(a_name)
       end
     end
 
