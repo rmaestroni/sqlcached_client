@@ -33,7 +33,7 @@ class User < Base
   entity_name 'user'
 
   query <<-SQL
-    SELECT * FROM users WHERE id IN ({{ id }})
+    SELECT * FROM users WHERE id IN ({{ ids }})
   SQL
 
   has_many :posts, where: { user_id: :id }
@@ -56,14 +56,14 @@ end
 ```
 
 Run some queries:
-```
-users = User.where(id: '1, 2, 3, 4')
+```ruby
+users = User.where(ids: '1, 2, 3, 4')
 
 users[0].pictures.each # you can navigate through the associations
 ```
 
 Load in memory every associated set recursively:
-```
+```ruby
 users.build_associations # for each entity in the resultset, or...
 users[0].build_associations # for a single entity
 ```
