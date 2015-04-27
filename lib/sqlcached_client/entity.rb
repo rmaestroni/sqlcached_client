@@ -5,11 +5,11 @@ require 'sqlcached_client/server'
 module SqlcachedClient
   class Entity < HashStruct
 
-    attr_reader :count, :resultset, :attributes
+    attr_reader :count, :resultset, :attribute_names
 
     # @param attributes [Hash]
     def initialize(attributes)
-      @attributes = attributes.keys
+      @attribute_names = attributes.keys
       super(attributes)
     end
 
@@ -75,7 +75,7 @@ module SqlcachedClient
         }
         # get the attributes to define the foreign scope
         join_attributes = (options[:where] || []).to_a
-        # memoized the associated resultset
+        # memoize the associated resultset
         memoize_var = "@has_many_#{accessor_name}"
         # define the accessor method
         define_method(accessor_name) do |dry_run = false|
@@ -137,6 +137,15 @@ module SqlcachedClient
       self.class.registered_associations.map do |a_name|
         send(a_name)
       end
+    end
+
+    def build_associations(max_depth = false)
+      Resultset.new(self.class, [self]).build_associations(max_depth)
+    end
+
+    def to_h
+      @_to_h ||=
+        Hash[ attribute_names.map { |a_name| [a_name, send(a_name)] } ]
     end
 
   end # class Entity

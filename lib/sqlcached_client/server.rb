@@ -12,17 +12,6 @@ module SqlcachedClient
     end
 
 
-    def self.log_request(url)
-      @logged_urls ||= []
-      @logged_urls << url
-    end
-
-
-    def self.logged_requests
-      @logged_urls
-    end
-
-
     def run_query(http_req_body)
       url = server_url
       Net::HTTP.start(url.host, url.port) do |http|
@@ -38,7 +27,7 @@ module SqlcachedClient
         if 200 == resp.code.to_i
           resp_body
         else
-          raise "Got http response #{resp.code} from server - #{resp_body}"
+          raise "Got http response #{resp.code} from server - #{resp_body.inspect}"
         end
       end
     end
