@@ -5,7 +5,7 @@ require 'sqlcached_client/server'
 module SqlcachedClient
   class Entity < HashStruct
 
-    attr_reader :count, :resultset, :attribute_names
+    attr_reader :attribute_names
 
     # @param attributes [Hash]
     def initialize(attributes)
