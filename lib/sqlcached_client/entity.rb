@@ -48,6 +48,11 @@ module SqlcachedClient
         end
       end
 
+      # Gets a session from the server and yields the passed block
+      def server_session(&block)
+        server.session(&block)
+      end
+
       # Runs the entity query with the provided parameters
       # @return [Resultset]
       def where(params, dry_run = false)
@@ -55,7 +60,10 @@ module SqlcachedClient
         if dry_run
           request
         else
-          data = server.run_query(server.build_request_body([request]))
+          data =
+            server.session do |server, session|
+              server.run_query(session, server.build_request_body([request]))
+            end
           data = data[0] if data.is_a?(Array)
           Resultset.new(self, data)
         end

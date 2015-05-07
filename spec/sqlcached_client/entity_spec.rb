@@ -103,13 +103,10 @@ describe SqlcachedClient::Entity do
         entity_class.server(double(
           format_request: "this is the request",
           build_request_body: "request body",
-          run_query: [[{ key: "value" }], 2, 3]
+          session: [[{ key: "value" }], 2, 3]
         ))
         expect(entity_class.server).to receive(:format_request).with(
           "foo", "bar", { baz: "biz" })
-        expect(entity_class.server).to receive(:build_request_body).with(
-          ["this is the request"])
-        expect(entity_class.server).to receive(:run_query).with("request body")
         expect(entity_class.where({ baz: "biz" })).to be_instance_of(
           SqlcachedClient::Resultset)
       end

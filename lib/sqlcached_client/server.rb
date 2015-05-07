@@ -12,23 +12,20 @@ module SqlcachedClient
     end
 
 
-    def run_query(http_req_body)
-      url = server_url
-      Net::HTTP.start(url.host, url.port) do |http|
-        req = Net::HTTP::Post.new(data_batch_url)
-        req.set_content_type('application/json')
-        req.body = http_req_body.to_json
-        resp = http.request(req)
-        if 'application/json' == resp['Content-Type']
-          resp_body = parse_response_body(JSON.parse(resp.body))
-        else
-          resp_body = resp.body
-        end
-        if 200 == resp.code.to_i
-          resp_body
-        else
-          raise "Got http response #{resp.code} from server - #{resp_body.inspect}"
-        end
+    def run_query(session, http_req_body)
+      req = Net::HTTP::Post.new(data_batch_url)
+      req.set_content_type('application/json')
+      req.body = http_req_body.to_json
+      resp = session.request(req)
+      if 'application/json' == resp['Content-Type']
+        resp_body = parse_response_body(JSON.parse(resp.body))
+      else
+        resp_body = resp.body
+      end
+      if 200 == resp.code.to_i
+        resp_body
+      else
+        raise "Got http response #{resp.code} from server - #{resp_body.inspect}"
       end
     end
 
@@ -59,6 +56,20 @@ module SqlcachedClient
         queryTemplate: query_template,
         queryParams: params
       }
+    end
+
+
+    def get_session
+      url = server_url
+      Net::HTTP.start(url.host, url.port)
+    end
+
+
+    def session
+      s = get_session
+      ret_value = yield(self, s) if block_given?
+      s.finish
+      ret_value
     end
 
   private

@@ -22,12 +22,13 @@ module SqlcachedClient
 
     class << self
 
-      def build_associations(resultsets, server, max_depth, current_depth = 0)
+      def build_associations(resultsets, server, session, max_depth, current_depth = 0)
         if resultsets.any?
           batch = resultsets.map { |r| r._get_entities_association_requests }
           if batch.flatten.any?
             next_batch =
               server.run_query(
+                session,
                 server.build_request_body(
                   batch
                 )
@@ -35,7 +36,8 @@ module SqlcachedClient
                 resultsets[i]._fill_associations(resultset_data)
               end.flatten!
             if !max_depth || current_depth < max_depth
-              build_associations(next_batch, server, max_depth, current_depth + 1)
+              build_associations(next_batch, server, session, max_depth,
+                current_depth + 1)
             end
           end
         end
@@ -55,7 +57,9 @@ module SqlcachedClient
     end
 
     def build_associations(max_depth = false)
-      self.class.build_associations([self], entity_class.server, max_depth)
+      entity_class.server_session do |server, session|
+        self.class.build_associations([self], server, session, max_depth)
+      end
     end
 
     def _fill_associations(data)
