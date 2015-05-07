@@ -17,14 +17,19 @@ module SqlcachedClient
     class << self
       attr_reader :query_id
 
+      # Sets the name of this entity
       def entity_name(value)
         @query_id = value
       end
 
+      # Sets the query of this entity if a parameter is provided, otherwise
+      # returns the value previously set.
       def query(sql_string = nil)
         sql_string.nil? ? @query : @query = sql_string.strip
       end
 
+      # Configures the server of this entity if a parameter is provided,
+      # otherwise returns the server object previously set.
       def server(config = nil)
         if config.nil?
           @server ||
@@ -43,6 +48,8 @@ module SqlcachedClient
         end
       end
 
+      # Runs the entity query with the provided parameters
+      # @return [Resultset]
       def where(params, dry_run = false)
         request = server.format_request(query_id, query, params)
         if dry_run
@@ -54,6 +61,19 @@ module SqlcachedClient
         end
       end
 
+      # Defines a 'has_many' relationship. Available options are
+      # [class_name]
+      #   Specifies the class of the associated objects, if not given it's
+      #   inferred from the accessor_name (singularized + camelized).
+      # [where]
+      #   Specifies how to fill the query template for the associated objects.
+      #   It's an hash where each key is a foreign parameter that will be
+      #   set to the value provided. A special case occours when the value is
+      #   a Symbol, in this case it represents the value of the attribute named
+      #   as the symbol.
+      #   For example, <tt>where: { id: :user_id }</tt> fills the parameter
+      #   <tt>id</tt> of the foreign entity with the value of
+      #   <tt>self.user_id</tt>.
       def has_many(accessor_name, options)
         foreign_class_name =
           if options[:class_name].present?
@@ -100,6 +120,8 @@ module SqlcachedClient
         register_association(accessor_name)
       end
 
+      # Defines a 'has_one' relationship. See 'has_many' for the available
+      # options
       def has_one(accessor_name, options)
         plural_accessor_name = "s_#{accessor_name}".to_s.pluralize
         class_name = accessor_name.to_s.camelize
