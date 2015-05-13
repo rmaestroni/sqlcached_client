@@ -1,5 +1,4 @@
 require 'sqlcached_client/resultset'
-require 'sqlcached_client/hash_struct'
 
 describe SqlcachedClient::Resultset do
 
@@ -12,9 +11,9 @@ describe SqlcachedClient::Resultset do
 
     context "when passed entities are hashes" do
       it "should map them to instances of the entity class provided" do
-        r = SqlcachedClient::Resultset.new(SqlcachedClient::HashStruct,
+        r = SqlcachedClient::Resultset.new(SqlcachedClient::Entity,
           [{ foo: 'bar' }] * 3)
-        expect(r.entities[0]).to be_instance_of(SqlcachedClient::HashStruct)
+        expect(r.entities[0]).to be_instance_of(SqlcachedClient::Entity)
       end
     end
 

@@ -1,16 +1,15 @@
-require 'sqlcached_client/hash_struct'
 require 'sqlcached_client/resultset'
 require 'sqlcached_client/server'
 
 module SqlcachedClient
-  class Entity < HashStruct
+  class Entity
 
-    attr_reader :attribute_names
+    attr_reader :attributes
 
     # @param attributes [Hash]
     def initialize(attributes)
-      @attribute_names = attributes.keys
-      super(attributes)
+      @attributes = attributes
+      self.class.define_readers(attributes.keys)
     end
 
 
@@ -143,6 +142,23 @@ module SqlcachedClient
         @registered_associations || []
       end
 
+      # Define the readers for the attribute names specified
+      # @param attr_names [Array]
+      def define_readers(attr_names)
+        if @_readers_defined.nil?
+          attr_names.each do |attr_name|
+            if method_defined?(attr_name)
+              raise "Cannot define accessor: #{attr_name}"
+            else
+              define_method(attr_name) do
+                attributes[attr_name]
+              end
+            end
+          end
+          @_readers_defined = true
+        end
+      end
+
     private
 
       def register_association(association_name)
@@ -174,8 +190,7 @@ module SqlcachedClient
     end
 
     def to_h
-      @_to_h ||=
-        Hash[ attribute_names.map { |a_name| [a_name, send(a_name)] } ]
+      attributes
     end
 
   end # class Entity

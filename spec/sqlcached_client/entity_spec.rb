@@ -5,8 +5,16 @@ describe SqlcachedClient::Entity do
 
   describe :initialize do
     it "should record the attribute names" do
-      e = SqlcachedClient::Entity.new({ foo: 'bar', baz: 'biz' })
-      expect(e.attribute_names).to eq([:foo, :baz])
+      h = { foo: 'bar', baz: 'biz' }
+      e = Class.new(SqlcachedClient::Entity).new(h)
+      expect(e.attributes).to eq(h)
+    end
+
+    it "should define readers methods named as attributes.keys" do
+      entity_class = Class.new(SqlcachedClient::Entity)
+      entity = entity_class.new(foo: 'bar', baz: 'biz')
+      expect(entity.foo).to eq('bar')
+      expect(entity.baz).to eq('biz')
     end
   end
 
@@ -145,6 +153,11 @@ describe SqlcachedClient::Entity do
 
 
   describe :to_h do
-    pending
+    it "should return attributes" do
+      entity_class = Class.new(SqlcachedClient::Entity)
+      h = { foo: 'bar', baz: 'biz' }
+      entity = entity_class.new(h)
+      expect(entity.to_h).to eq(h)
+    end
   end
 end
