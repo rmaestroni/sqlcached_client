@@ -23,8 +23,18 @@ module SqlcachedClient
 
       # Sets the query of this entity if a parameter is provided, otherwise
       # returns the value previously set.
-      def query(sql_string = nil)
-        sql_string.nil? ? @query : @query = sql_string.strip
+      def query(arg = nil, &block)
+        if arg.nil?
+          @query
+        else
+          case arg.class
+          when String then @query = arg.strip
+          when Symbol then @query = parse_arel(Hash[ [[arg]] ], block)
+          when Hash then @query = parse_arel(arg, block)
+          else
+            @query = arg.to_sql
+          end
+        end
       end
 
       # Configures the server of this entity if a parameter is provided,
@@ -164,6 +174,25 @@ module SqlcachedClient
       def register_association(association_name)
         @registered_associations ||= []
         @registered_associations << association_name.to_sym
+      end
+
+      # Executes the Arel statements to build a SQL query
+      # @param tables_map [Hash] in the form of
+      #   { :t1 => [:par1, :par2], :t2 => :par3 }
+      # @param arel_block [Proc]
+      # @return [String] sql query
+      def parse_arel(tables_map, arel_block)
+        context = Struct.new(tables_map.keys)
+        context.new(
+          tables_map.map do |t_name, parameters|
+            table = Arel::Table.new(t_name)
+            parameters ||= []
+            parameters = [parameters] if !parameters.respond_to?(:inject)
+            parameters.inject(table) do |arel, param|
+              arel.where(table[param].eq("{{ #{param} }}"))
+            end
+          end
+        ).instance_eval(&arel_block)
       end
     end # class << self
 
