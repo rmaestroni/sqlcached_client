@@ -14,7 +14,7 @@ module SqlcachedClient
         elsif item.is_a?(entity_class)
           item
         else
-          raise "Cannot handle instances of #{item.class.name}"
+          raise "Cannot handle: #{item.inspect}"
         end
       end
       @count = @entities.size
@@ -50,10 +50,6 @@ module SqlcachedClient
 
     def [](i)
       entities[i]
-    end
-
-    def uncache
-      # TODO
     end
 
     def build_associations(max_depth = false)

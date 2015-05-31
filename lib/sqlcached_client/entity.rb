@@ -71,15 +71,27 @@ module SqlcachedClient
       # Runs the entity query with the provided parameters
       # @return [Resultset]
       def where(params, dry_run = false)
-        request = server.format_request(query_id, query, params, cache)
+        request =
+          begin
+            paramIterator = -> (parameter) {
+              server.format_request(query_id, query, parameter, cache)
+            }
+            if params.is_a?(Array)
+              params.map { |p| instance_exec(p, &paramIterator) }
+            else
+              instance_exec(params, &paramIterator)
+            end
+          end
         if dry_run
           request
         else
           data =
             server.session do |server, session|
-              server.run_query(session, server.build_request_body([request]))
+              server.run_query(session, server.build_request_body(
+                request.is_a?(Array) ? request : [request]
+              ))
             end
-          data = data[0] if data.is_a?(Array)
+          data.flatten!(1) if data.is_a?(Array)
           Resultset.new(self, data)
         end
       end

@@ -111,7 +111,7 @@ describe SqlcachedClient::Entity do
         entity_class.server(double(
           format_request: "this is the request",
           build_request_body: "request body",
-          session: [[{ key: "value" }], 2, 3]
+          session: [ [{ key: "value" }], [{ key: "value" }] ]
         ))
         expect(entity_class.server).to receive(:format_request).with(
           "foo", "bar", { baz: "biz" }, true)
