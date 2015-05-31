@@ -11,7 +11,7 @@ module SqlcachedClient
     #   { :t1 => [:par1, :par2], :t2 => :par3, :t3 => nil }
     # @param arel_block [Proc]
     # @return [Arel] an object that responds to 'to_sql'
-    def parse_arel(tables_map, arel_block)
+    def build_arel(tables_map, arel_block)
       table_names = tables_map.keys
       # attributes of this struct returns Arel tables named as the attribute
       context = Struct.new(*table_names).new(
@@ -38,7 +38,7 @@ module SqlcachedClient
           arel.where(table[param].eq("{{ #{param} }}"))
         end
       end
-    end # method parse_arel
+    end # method build_arel
   end # module Arel
 
 private

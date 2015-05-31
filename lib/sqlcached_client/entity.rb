@@ -32,7 +32,7 @@ module SqlcachedClient
           if args[0].is_a?(String)
             @query = args[0].strip
           else
-            @query = parse_arel(
+            @query = build_arel(
               args.inject({}) do |acc, param|
                 acc.merge(
                   param.is_a?(Hash) ? param : Hash[ [[param, nil]] ]
