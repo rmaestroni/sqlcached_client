@@ -50,11 +50,12 @@ module SqlcachedClient
     end
 
 
-    def format_request(query_id, query_template, params)
+    def format_request(query_id, query_template, params, cache)
       {
         queryId: query_id,
         queryTemplate: query_template,
-        queryParams: params
+        queryParams: params,
+        cache: cache
       }
     end
 

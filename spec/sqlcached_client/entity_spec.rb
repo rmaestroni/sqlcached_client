@@ -101,7 +101,7 @@ describe SqlcachedClient::Entity do
     context "if dry_run" do
       it "should return the request that would be sent to the server" do
         entity_class.server(double(format_request: "this is the request"))
-        expect(entity_class.server).to receive(:format_request).with("foo", "bar", { baz: "biz" })
+        expect(entity_class.server).to receive(:format_request).with("foo", "bar", { baz: "biz" }, true)
         expect(entity_class.where({ baz: "biz" }, true)).to eq("this is the request")
       end
     end
@@ -114,7 +114,7 @@ describe SqlcachedClient::Entity do
           session: [[{ key: "value" }], 2, 3]
         ))
         expect(entity_class.server).to receive(:format_request).with(
-          "foo", "bar", { baz: "biz" })
+          "foo", "bar", { baz: "biz" }, true)
         expect(entity_class.where({ baz: "biz" })).to be_instance_of(
           SqlcachedClient::Resultset)
       end

@@ -22,10 +22,11 @@ describe SqlcachedClient::Server do
 
   describe :format_request do
     it "should be an hash with id, template, params keys" do
-      expect(server.format_request("foo", "bar", "baz")).to eq({
+      expect(server.format_request("foo", "bar", "baz", "cache")).to eq({
         queryId: "foo",
         queryTemplate: "bar",
-        queryParams: "baz"
+        queryParams: "baz",
+        cache: "cache"
       })
     end
   end

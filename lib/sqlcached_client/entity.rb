@@ -71,7 +71,7 @@ module SqlcachedClient
       # Runs the entity query with the provided parameters
       # @return [Resultset]
       def where(params, dry_run = false)
-        request = server.format_request(query_id, query, params)
+        request = server.format_request(query_id, query, params, cache)
         if dry_run
           request
         else
@@ -172,6 +172,22 @@ module SqlcachedClient
             end
           end
           @_readers_defined = true
+        end
+      end
+
+      # Configures the caching timing if a parameter is provided, otherwise
+      # returns the value set in the current class or in a superclass.
+      # Default value is true.
+      def cache(seconds = nil)
+        if seconds.nil?
+          @cache ||
+            if (superclass = ancestors[1]).respond_to?(:cache)
+              superclass.cache
+            else
+              true
+            end
+        else
+          @cache = seconds
         end
       end
 
