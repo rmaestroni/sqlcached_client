@@ -48,7 +48,7 @@ module SqlcachedClient
       def server(config = nil)
         if config.nil?
           @server ||
-            if (superclass = ancestors[1]).respond_to?(:server)
+            if superclass = ancestors[1..-1].detect { |a| a.respond_to?(:server) }
               superclass.server
             else
               nil
@@ -193,7 +193,7 @@ module SqlcachedClient
       def cache(seconds = nil)
         if seconds.nil?
           @cache ||
-            if (superclass = ancestors[1]).respond_to?(:cache)
+            if superclass = ancestors[1..-1].detect { |a| a.respond_to?(:cache) }
               superclass.cache
             else
               true
