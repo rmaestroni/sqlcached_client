@@ -1,10 +1,12 @@
 require 'sqlcached_client/resultset'
 require 'sqlcached_client/server'
 require 'sqlcached_client/arel'
+require 'sqlcached_client/visitor'
 
 module SqlcachedClient
   class Entity
     extend Arel
+    extend Visitor
 
     attr_reader :attributes
 
@@ -151,6 +153,9 @@ module SqlcachedClient
           instance_variable_set(memoize_var,
             Resultset.new(foreign_entity, array))
         end
+        # store the foreign class name
+        @foreign_entities ||= []
+        @foreign_entities << [foreign_class_name, join_attributes]
         # save the newly created association
         register_association(accessor_name)
       end
@@ -203,6 +208,28 @@ module SqlcachedClient
         end
       end
 
+      def build_query_tree
+        get_associated_entities = -> (entity) {
+          assoc_entities = (entity.instance_variable_get(:@foreign_entities) || []).map(&:first)
+          assoc_entities.map { |e| Module.const_get(e) }
+        }
+        visit = -> (entity, parent, index) {
+          mapped_v = {
+            query_id: entity.query_id,
+            query: entity.query,
+            map: {}
+          }
+          if parent
+            entities = parent.instance_variable_get(:@foreign_entities) || []
+            mapped_v.merge!({
+              map: Hash[ entities[index].try(:last) || [] ]
+            })
+          end
+          mapped_v
+        }
+        visit_in_preorder(get_associated_entities, visit)
+      end
+
     private
 
       def register_association(association_name)
@@ -236,6 +263,5 @@ module SqlcachedClient
     def to_h
       attributes
     end
-
   end # class Entity
 end
