@@ -160,4 +160,20 @@ describe SqlcachedClient::Entity do
       expect(entity.to_h).to eq(h)
     end
   end
+
+
+  describe :join_constant_value? do
+    context "if value is a Symbol" do
+      it "should be false" do
+        expect(SqlcachedClient::Entity.join_constant_value?(:foo)).to eq(false)
+      end
+    end
+
+    context "if value is not a Symbol" do
+      it "should be true" do
+        expect(SqlcachedClient::Entity.join_constant_value?('bar')).to eq(true)
+        expect(SqlcachedClient::Entity.join_constant_value?(1)).to eq(true)
+      end
+    end
+  end
 end

@@ -25,6 +25,10 @@ describe SqlcachedClient::Visitor do
     ])
   end
 
+  let(:result_builder) do
+    -> (root, subtrees) { [root, subtrees] }
+  end
+
 
   describe :visit_in_preorder do
 
@@ -33,14 +37,18 @@ describe SqlcachedClient::Visitor do
         tree = double(element: 'root', subtrees: [])
         tree.extend(SqlcachedClient::Visitor)
         values = []
-        tree.visit_in_preorder(:subtrees.to_proc, -> (el) { values << el.element })
+        tree.visit_in_preorder(:subtrees.to_proc,
+          -> (el, parent, index) { values << el.element },
+          result_builder)
         expect(values).to eq(['root'])
       end
     end
 
     it "is expected to be 0, 1, 2, 3, 3, 1" do
       values = []
-      fake_tree.visit_in_preorder(:subtrees.to_proc, -> (item) { values << item.depth })
+      fake_tree.visit_in_preorder(:subtrees.to_proc,
+        -> (item, parent, index) { values << item.depth },
+        result_builder)
       expect(values).to eq([0, 1, 2, 3, 3, 1])
     end
   end

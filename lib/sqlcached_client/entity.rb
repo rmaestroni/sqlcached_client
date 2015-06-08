@@ -122,10 +122,10 @@ module SqlcachedClient
         association = -> (this, foreign_entity, join_attributes, dry_run) {
           foreign_entity.where(Hash[ join_attributes.map do |attr_names|
             attr_value =
-              if attr_names[1].is_a?(Symbol)
-                this.send(attr_names[1])
-              else
+              if this.join_constant_value?(attr_names[1])
                 attr_names[1]
+              else
+                this.send(attr_names[1])
               end
             [ attr_names[0], attr_value ]
           end ], dry_run)
@@ -139,11 +139,11 @@ module SqlcachedClient
           # get the associated entity class
           foreign_entity = Module.const_get(foreign_class_name)
           if dry_run
-            association.call(self, foreign_entity, join_attributes, true)
+            association.(self, foreign_entity, join_attributes, true)
           else
             instance_variable_get(memoize_var) ||
               instance_variable_set(memoize_var,
-                association.call(self, foreign_entity, join_attributes, false))
+                association.(self, foreign_entity, join_attributes, false))
           end
         end
         # define the setter method
@@ -153,11 +153,12 @@ module SqlcachedClient
           instance_variable_set(memoize_var,
             Resultset.new(foreign_entity, array))
         end
-        # store the foreign class name
-        @foreign_entities ||= []
-        @foreign_entities << [foreign_class_name, join_attributes]
         # save the newly created association
-        register_association(accessor_name)
+        register_association(OpenStruct.new({
+          accessor_name: accessor_name.to_sym,
+          class_name: foreign_class_name,
+          join_attributes: join_attributes
+        }))
       end
 
       # Defines a 'has_one' relationship. See 'has_many' for the available
@@ -173,6 +174,10 @@ module SqlcachedClient
 
       def registered_associations
         @registered_associations || []
+      end
+
+      def association_names
+        registered_associations.map { |a| a.accessor_name }
       end
 
       # Define the readers for the attribute names specified
@@ -210,48 +215,68 @@ module SqlcachedClient
 
       def build_query_tree
         get_associated_entities = -> (entity) {
-          assoc_entities = (entity.instance_variable_get(:@foreign_entities) || []).map(&:first)
-          assoc_entities.map { |e| Module.const_get(e) }
+          entity.registered_associations.map do |a|
+            Module.const_get(a.class_name)
+          end
         }
         visit = -> (entity, parent, index) {
-          mapped_v = {
+          {
             query_id: entity.query_id,
-            query: entity.query,
-            map: {}
+            query_template: entity.query,
+            query_params:
+              if parent
+                Hash[ parent.registered_associations[index
+                    ].join_attributes.map do |j_attr|
+                  [ j_attr[0], {
+                    value: j_attr[1],
+                    type:
+                      if entity.join_constant_value?(j_attr[1])
+                        'constant'
+                      else
+                        'parent_attribute'
+                      end } ]
+                end ]
+              else
+                {}
+              end
           }
-          if parent
-            entities = parent.instance_variable_get(:@foreign_entities) || []
-            mapped_v.merge!({
-              map: Hash[ entities[index].try(:last) || [] ]
-            })
-          end
-          mapped_v
         }
-        visit_in_preorder(get_associated_entities, visit)
+        result_builder = -> (root, subtrees) {
+          { root: root, subtrees: subtrees }
+        }
+        visit_in_preorder(get_associated_entities, visit, result_builder)
+      end
+
+      def join_constant_value?(value)
+        !value.is_a?(Symbol)
       end
 
     private
 
-      def register_association(association_name)
+      def register_association(association_struct)
         @registered_associations ||= []
-        @registered_associations << association_name.to_sym
+        @registered_associations << association_struct
       end
     end # class << self
 
+    def join_constant_value?(value)
+      self.class.join_constant_value?(value)
+    end
+
     def get_association_requests
-      self.class.registered_associations.map do |a_name|
+      self.class.association_names.map do |a_name|
         send(a_name, true)
       end
     end
 
     def set_associations_data(associations_data)
-      self.class.registered_associations.map.with_index do |a_name, i|
+      self.class.association_names.map.with_index do |a_name, i|
         send("#{a_name}=", associations_data[i])
       end
     end
 
     def get_associations
-      self.class.registered_associations.map do |a_name|
+      self.class.association_names.map do |a_name|
         send(a_name)
       end
     end
