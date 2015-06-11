@@ -100,8 +100,8 @@ describe SqlcachedClient::Entity do
 
     context "if dry_run" do
       it "should return the request that would be sent to the server" do
-        entity_class.server(double(format_request: "this is the request"))
-        expect(entity_class.server).to receive(:format_request).with("foo", "bar", { baz: "biz" }, true)
+        entity_class.server(double(build_request_item: "this is the request"))
+        expect(entity_class.server).to receive(:build_request_item).with("foo", "bar", { baz: "biz" }, true)
         expect(entity_class.where({ baz: "biz" }, true)).to eq("this is the request")
       end
     end
@@ -109,11 +109,11 @@ describe SqlcachedClient::Entity do
     context "if not dry_run" do
       it "should create a new ResultSet" do
         entity_class.server(double(
-          format_request: "this is the request",
-          build_request_body: "request body",
+          build_request_item: "this is the request",
+          build_request: "request body",
           session: [ [{ key: "value" }], [{ key: "value" }] ]
         ))
-        expect(entity_class.server).to receive(:format_request).with(
+        expect(entity_class.server).to receive(:build_request_item).with(
           "foo", "bar", { baz: "biz" }, true)
         expect(entity_class.where({ baz: "biz" })).to be_instance_of(
           SqlcachedClient::Resultset)
@@ -175,5 +175,10 @@ describe SqlcachedClient::Entity do
         expect(SqlcachedClient::Entity.join_constant_value?(1)).to eq(true)
       end
     end
+  end
+
+
+  describe :build_query_tree do
+    pending
   end
 end

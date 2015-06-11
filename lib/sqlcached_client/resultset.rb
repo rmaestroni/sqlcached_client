@@ -29,7 +29,7 @@ module SqlcachedClient
             next_batch =
               server.run_query(
                 session,
-                server.build_request_body(
+                server.build_request(
                   batch
                 )
               ).map.with_index do |resultset_data, i|

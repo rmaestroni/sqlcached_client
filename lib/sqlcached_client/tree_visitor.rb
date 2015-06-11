@@ -1,8 +1,11 @@
 module SqlcachedClient
-  module Visitor
+  module TreeVisitor
 
     # @param get_subtrees [Proc]
     # @param visit [Proc]
+    # @param result_builder [Proc]
+    # @param parent [Object]
+    # @param index [Integer]
     def visit_in_preorder(get_subtrees, visit, result_builder,
         parent = nil, index = nil)
       result_builder.(

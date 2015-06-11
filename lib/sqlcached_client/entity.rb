@@ -1,12 +1,12 @@
 require 'sqlcached_client/resultset'
 require 'sqlcached_client/server'
 require 'sqlcached_client/arel'
-require 'sqlcached_client/visitor'
+require 'sqlcached_client/tree_visitor'
 
 module SqlcachedClient
   class Entity
     extend Arel
-    extend Visitor
+    extend TreeVisitor
 
     attr_reader :attributes
 
@@ -76,7 +76,7 @@ module SqlcachedClient
         request =
           begin
             paramIterator = -> (parameter) {
-              server.format_request(query_id, query, parameter, cache)
+              server.build_request_item(query_id, query, parameter, cache)
             }
             if params.is_a?(Array)
               params.map { |p| instance_exec(p, &paramIterator) }
@@ -89,7 +89,7 @@ module SqlcachedClient
         else
           data =
             server.session do |server, session|
-              server.run_query(session, server.build_request_body(
+              server.run_query(session, server.build_request(
                 request.is_a?(Array) ? request : [request]
               ))
             end
@@ -172,9 +172,11 @@ module SqlcachedClient
         end
       end
 
+
       def registered_associations
         @registered_associations || []
       end
+
 
       def association_names
         registered_associations.map { |a| a.accessor_name }
@@ -213,20 +215,24 @@ module SqlcachedClient
         end
       end
 
+
       def build_query_tree
+        # returns the subtrees (associated classes) of the given entity class
         get_associated_entities = -> (entity) {
           entity.registered_associations.map do |a|
             Module.const_get(a.class_name)
           end
         }
+
+        # function to apply to each node while traversing the tree
         visit = -> (entity, parent, index) {
-          {
-            query_id: entity.query_id,
-            query_template: entity.query,
-            query_params:
-              if parent
-                Hash[ parent.registered_associations[index
-                    ].join_attributes.map do |j_attr|
+          entity.server.build_request_item(
+            entity.query_id,
+            entity.query,
+            # query_params
+            if parent
+              Hash[
+                parent.registered_associations[index].join_attributes.map do |j_attr|
                   [ j_attr[0], {
                     value: j_attr[1],
                     type:
@@ -234,21 +240,44 @@ module SqlcachedClient
                         'constant'
                       else
                         'parent_attribute'
-                      end } ]
-                end ]
-              else
-                {}
+                      end
+                  } ]
+                end
+              ]
+            else
+              nil
+            end,
+            entity.cache
+          ).merge({
+            associations:
+              entity.registered_associations.map do |association|
+                association.accessor_name
               end
-          }
+          })
         }
+
+        # builds the result of a visit step
         result_builder = -> (root, subtrees) {
           { root: root, subtrees: subtrees }
         }
+
+        # traverse the tree
         visit_in_preorder(get_associated_entities, visit, result_builder)
       end
 
+
       def join_constant_value?(value)
         !value.is_a?(Symbol)
+      end
+
+      # Like 'where' but loads every associated entity recursively at any level,
+      #   with only one interaction with the server
+      # @param root_conditions [Array]
+      def load_tree(root_conditions)
+        server.session do |server, session|
+          server.run_query(session, server.build_tree_request(
+            build_query_tree, root_conditions))
+        end
       end
 
     private
@@ -259,9 +288,11 @@ module SqlcachedClient
       end
     end # class << self
 
+
     def join_constant_value?(value)
       self.class.join_constant_value?(value)
     end
+
 
     def get_association_requests
       self.class.association_names.map do |a_name|
@@ -269,11 +300,13 @@ module SqlcachedClient
       end
     end
 
+
     def set_associations_data(associations_data)
       self.class.association_names.map.with_index do |a_name, i|
         send("#{a_name}=", associations_data[i])
       end
     end
+
 
     def get_associations
       self.class.association_names.map do |a_name|
@@ -281,9 +314,11 @@ module SqlcachedClient
       end
     end
 
+
     def build_associations(max_depth = false)
       Resultset.new(self.class, [self]).build_associations(max_depth)
     end
+
 
     def to_h
       attributes

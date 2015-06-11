@@ -13,19 +13,28 @@ describe SqlcachedClient::Server do
   end
 
 
-  describe :build_request_body do
+  describe :build_request do
     it "should put the passed value into an hash" do
-      expect(server.build_request_body("foo")).to eq({ batch: "foo" })
+      expect(server.build_request("foo")).to eq({ batch: "foo" })
     end
   end
 
 
-  describe :format_request do
+  describe :build_tree_request do
+    it "should be an Hash with 'tree' and 'root_parameters' keys" do
+      expect(server.build_tree_request('tree', 'root')).to eq({
+        tree: 'tree', root_parameters: 'root'
+      })
+    end
+  end
+
+
+  describe :build_request_item do
     it "should be an hash with id, template, params keys" do
-      expect(server.format_request("foo", "bar", "baz", "cache")).to eq({
-        queryId: "foo",
-        queryTemplate: "bar",
-        queryParams: "baz",
+      expect(server.build_request_item("foo", "bar", "baz", "cache")).to eq({
+        query_id: "foo",
+        query_template: "bar",
+        query_params: "baz",
         cache: "cache"
       })
     end

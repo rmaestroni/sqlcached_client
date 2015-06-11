@@ -1,10 +1,10 @@
-require 'sqlcached_client/visitor'
+require 'sqlcached_client/tree_visitor'
 
-describe SqlcachedClient::Visitor do
+describe SqlcachedClient::TreeVisitor do
 
   let(:fake_class) do
     Class.new(Object) do
-      include SqlcachedClient::Visitor
+      include SqlcachedClient::TreeVisitor
 
       attr_reader :subtrees, :depth
 
@@ -35,7 +35,7 @@ describe SqlcachedClient::Visitor do
     context "with an empty tree" do
       it "is expected to visit the root element only" do
         tree = double(element: 'root', subtrees: [])
-        tree.extend(SqlcachedClient::Visitor)
+        tree.extend(SqlcachedClient::TreeVisitor)
         values = []
         tree.visit_in_preorder(:subtrees.to_proc,
           -> (el, parent, index) { values << el.element },
