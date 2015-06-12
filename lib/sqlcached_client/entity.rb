@@ -13,7 +13,7 @@ module SqlcachedClient
     # @param attributes [Hash]
     def initialize(attributes)
       @attributes = attributes
-      self.class.define_readers(attributes.keys)
+      define_readers(attributes.keys)
     end
 
 
@@ -179,24 +179,12 @@ module SqlcachedClient
 
 
       def association_names
-        registered_associations.map { |a| a.accessor_name }
+        registered_associations.map(&:accessor_name)
       end
 
-      # Define the readers for the attribute names specified
-      # @param attr_names [Array]
-      def define_readers(attr_names)
-        if @_readers_defined.nil?
-          attr_names.each do |attr_name|
-            if method_defined?(attr_name)
-              raise "Cannot define accessor: #{attr_name}"
-            else
-              define_method(attr_name) do
-                attributes[attr_name]
-              end
-            end
-          end
-          @_readers_defined = true
-        end
+
+      def is_an_association?(name)
+        association_names.include?(name.to_sym)
       end
 
       # Configures the caching timing if a parameter is provided, otherwise
@@ -248,12 +236,7 @@ module SqlcachedClient
               nil
             end,
             entity.cache
-          ).merge({
-            associations:
-              entity.registered_associations.map do |association|
-                association.accessor_name
-              end
-          })
+          ).merge(associations: entity.association_names)
         }
 
         # builds the result of a visit step
@@ -287,6 +270,30 @@ module SqlcachedClient
         @registered_associations << association_struct
       end
     end # class << self
+
+    # Define the readers for the attribute names specified
+    # @param attr_names [Array]
+    def define_readers(attr_names)
+      attr_names.each do |attr_name|
+        if respond_to?(attr_name)
+          if self.class.is_an_association?(attr_name)
+            # lazy instantiate associated records
+            association_writer = method("#{attr_name}=")
+            association_reader = method(attr_name)
+            define_singleton_method(attr_name) do
+              association_writer.(attributes[attr_name])
+              association_reader.()
+            end
+          else
+            raise "Cannot define accessor: #{attr_name}"
+          end
+        else
+          define_singleton_method(attr_name) do
+            attributes[attr_name]
+          end
+        end
+      end
+    end
 
 
     def join_constant_value?(value)
