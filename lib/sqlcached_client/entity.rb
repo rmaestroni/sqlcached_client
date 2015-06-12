@@ -258,8 +258,13 @@ module SqlcachedClient
       # @param root_conditions [Array]
       def load_tree(root_conditions)
         server.session do |server, session|
-          server.run_query(session, server.build_tree_request(
-            build_query_tree, root_conditions))
+          Resultset.new(
+            self,
+            server.run_query(
+              session,
+              server.build_tree_request(build_query_tree, root_conditions)
+            )
+          )
         end
       end
 
