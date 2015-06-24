@@ -223,12 +223,13 @@ module SqlcachedClient
                 parent.registered_associations[index].join_attributes.map do |j_attr|
                   [ j_attr[0], {
                     value: j_attr[1],
-                    type:
+                    type: begin
                       if entity.join_constant_value?(j_attr[1])
                         'constant'
                       else
                         'parent_attribute'
                       end
+                    end
                   } ]
                 end
               ]
