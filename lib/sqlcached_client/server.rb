@@ -18,7 +18,7 @@ module SqlcachedClient
       req.set_content_type('application/json')
       req.body = http_req_body.to_json
       resp = session.request(req)
-      if 'application/json' == resp['Content-Type']
+      if (resp['Content-Type'] || '') =~ /application\/json/
         resp_body = parse_response_body(JSON.parse(resp.body))
       else
         resp_body = resp.body
