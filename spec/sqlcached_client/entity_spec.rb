@@ -29,6 +29,27 @@ describe SqlcachedClient::Entity do
   end
 
 
+  describe :entity_namespace do
+    context "if a parameter is provided" do
+      it "sets @entity_namespace" do
+        entity_class = Class.new(SqlcachedClient::Entity) do
+          entity_namespace("foo")
+        end
+        expect(entity_class.instance_variable_get(:@entity_namespace)).to eq("foo")
+      end
+    end
+
+    context "if no parameter is given" do
+      it "returns the value previously set" do
+        entity_class = Class.new(SqlcachedClient::Entity) do
+          entity_namespace("foo")
+        end
+        expect(entity_class.entity_namespace).to eq("foo")
+      end
+    end
+  end
+
+
   describe :query do
     context "if a parameter is provided" do
       it "should set @query and strip spaces" do
@@ -45,6 +66,28 @@ describe SqlcachedClient::Entity do
           query("  foo \n  ")
         end
         expect(entity_class.query).to eq("foo")
+      end
+    end
+  end
+
+
+  describe :query_id do
+    context "if an entity_namespace was set" do
+      it "is entity_namespace::entity_name" do
+        entity_class = Class.new(SqlcachedClient::Entity) do
+          entity_namespace("foo")
+          entity_name("bar")
+        end
+        expect(entity_class.query_id).to eq("foo::bar")
+      end
+    end
+
+    context "if no entity_namespace was set" do
+      it "is entity_name" do
+        entity_class = Class.new(SqlcachedClient::Entity) do
+          entity_name("bar")
+        end
+        expect(entity_class.query_id).to eq("bar")
       end
     end
   end

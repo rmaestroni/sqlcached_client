@@ -18,11 +18,31 @@ module SqlcachedClient
 
 
     class << self
-      attr_reader :query_id
+
+      # Sets a prefix for each entity name, or returns the value previously set
+      # if no parameter is given
+      def entity_namespace(value = nil)
+        if value.nil?
+          @entity_namespace || try_ancestor(:entity_namespace)
+        else
+          @entity_namespace = value
+        end
+      end
 
       # Sets the name of this entity
+      # @param value [String]
       def entity_name(value)
         @query_id = value
+      end
+
+      # Returns the identifier of the query template of the current entity
+      # @return [String]
+      def query_id
+        if prefix = entity_namespace.presence
+          "#{prefix}::#{@query_id}"
+        else
+          @query_id
+        end
       end
 
       # Sets the query of this entity if a parameter is provided, otherwise
@@ -49,12 +69,7 @@ module SqlcachedClient
       # otherwise returns the server object previously set.
       def server(config = nil)
         if config.nil?
-          @server ||
-            if superclass = ancestors[1..-1].detect { |a| a.respond_to?(:server) }
-              superclass.server
-            else
-              nil
-            end
+          @server || try_ancestor(:server)
         else
           @server =
             if config.is_a?(Hash)
@@ -193,7 +208,7 @@ module SqlcachedClient
       def cache(seconds = nil)
         if seconds.nil?
           @cache ||
-            if superclass = ancestors[1..-1].detect { |a| a.respond_to?(:cache) }
+            if superclass = ancestors_lookup(:cache)
               superclass.cache
             else
               true
@@ -274,6 +289,22 @@ module SqlcachedClient
       def register_association(association_struct)
         @registered_associations ||= []
         @registered_associations << association_struct
+      end
+
+      # Finds the first ancestor that responds to the given method
+      # @param method_name [Symbol] the method to find
+      # @return [Class]
+      def ancestors_lookup(method_name)
+        ancestors[1..-1].detect { |a| a.respond_to?(method_name) }
+      end
+
+      # Calls the given method on the first ancestor that responds to the
+      # method
+      # @param method_name [Symbol]
+      # @return nil if no ancestor responds to the method, or the value
+      #   returned by 'method_name'
+      def try_ancestor(method_name)
+        ancestors_lookup(method_name).try(method_name)
       end
     end # class << self
 
