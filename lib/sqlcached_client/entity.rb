@@ -102,14 +102,14 @@ module SqlcachedClient
         if dry_run
           request
         else
-          data =
+          server_resp =
             server.session do |server, session|
               server.run_query(session, server.build_request(
                 request.is_a?(Array) ? request : [request]
               ))
             end
-          data.flatten!(1) if data.is_a?(Array)
-          Resultset.new(self, data)
+          server_resp.flatten!(1) if server_resp.is_array?
+          Resultset.new(self, server_resp)
         end
       end
 
@@ -272,14 +272,24 @@ module SqlcachedClient
       # Like 'where' but loads every associated entity recursively at any level,
       #   with only one interaction with the server
       # @param root_conditions [Array]
-      def load_tree(root_conditions)
+      def load_tree(root_conditions, attachment_name = nil,
+          attachment_conditions = nil)
+        attachments =
+          if attachment_name.present?
+            build_attachments(attachment_name, attachment_conditions,
+              root_conditions.size)
+          else
+            nil
+          end
         server.session do |server, session|
           Resultset.new(
             self,
             server.run_query(
               session,
-              server.build_tree_request(build_query_tree, root_conditions)
-            )
+              server.build_tree_request(build_query_tree, root_conditions,
+                attachments)
+            ),
+            attachments
           )
         end
       end

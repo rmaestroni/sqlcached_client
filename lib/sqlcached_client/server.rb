@@ -1,6 +1,7 @@
 require 'uri'
 require 'net/http'
 require 'json'
+require 'sqlcached_client/server_responses/query_response'
 
 module SqlcachedClient
   class Server
@@ -12,37 +13,32 @@ module SqlcachedClient
       @port = config[:port]
     end
 
-
+    # @return [ServerResponses::QueryResponse]
     def run_query(session, http_req_body)
       req = Net::HTTP::Post.new(data_batch_url)
       req.set_content_type('application/json')
       req.body = http_req_body.to_json
       resp = session.request(req)
-      if (resp['Content-Type'] || '') =~ /application\/json/
-        resp_body = parse_response_body(JSON.parse(resp.body))
-      else
-        resp_body = resp.body
-      end
+      resp_body =
+        if (resp['Content-Type'] || '') =~ /application\/json/
+          JSON.parse(resp.body)
+        else
+          resp.body
+        end
       if 200 == resp.code.to_i
-        resp_body
+        ServerResponses::QueryResponse.new(resp_body)
       else
         raise "Got HTTP response #{resp.code} from server - #{resp_body.inspect}"
       end
     end
 
 
-    def parse_response_body(body)
-      if body.is_a?(Array)
-        body.map { |item| parse_response_body(item) }
-      elsif body.is_a?(Hash)
-        if (resultset = body['resultset']).is_a?(String)
-          JSON.parse(resultset)
-        else
-          resultset
-        end
-      else
-        body
-      end
+    def store_attachments(session, http_req_body)
+      req = Net::HTTP::Post.new(store_attachments_url)
+      req.set_content_type('application/json')
+      req.body = http_req_body.to_json
+      resp = session.request(req)
+      201 == resp.code.to_i || raise("Failed to save attachments - server answered with #{resp.body.inspect}")
     end
 
     # Builds a 'standard' request body
@@ -56,8 +52,12 @@ module SqlcachedClient
     # @param tree [Hash]
     # @param root_parameters [Array] a vector of actual condition parameters
     #   for the root query
-    def build_tree_request(tree, root_parameters)
-      { tree: tree, root_parameters: root_parameters }
+    def build_tree_request(tree, root_parameters, attachments = nil)
+      h = { tree: tree, root_parameters: root_parameters }
+      if !attachments.nil?
+        h[:attachments] = attachments.map(&:to_query_format)
+      end
+      h
     end
 
     # Formats the parameters passed in the way the server expects
@@ -72,6 +72,14 @@ module SqlcachedClient
         query_template: query_template,
         query_params: params,
         cache: cache
+      }
+    end
+
+
+    def build_store_attachments_request(entities, attachments)
+      {
+        resultset: entities,
+        attachments: attachments
       }
     end
 
@@ -99,7 +107,13 @@ module SqlcachedClient
 
     def data_batch_url
       url = server_url
-      url.path = "/data-batch"
+      url.path = '/data-batch'
+      url
+    end
+
+    def store_attachments_url
+      url = server_url
+      url.path = '/resultset-attachments'
       url
     end
   end

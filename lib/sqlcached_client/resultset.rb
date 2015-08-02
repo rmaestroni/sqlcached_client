@@ -5,10 +5,13 @@ module SqlcachedClient
     attr_reader :entity_class, :entities, :count
 
     # @param entity_class [Class]
-    # @param entities [Array]
-    def initialize(entity_class, entities)
+    # @param data [Array] or [ServerResponse]
+    def initialize(entity_class, data, attachments = nil)
+      # set entity class
       @entity_class = entity_class
-      @entities = (entities || []).map do |item|
+      # build the entities
+      ents = data.respond_to?(:entities) ? data.entities : data
+      @entities = (ents || []).map do |item|
         if item.is_a?(Hash)
           entity_class.new(item)
         elsif item.is_a?(entity_class)
@@ -17,7 +20,10 @@ module SqlcachedClient
           raise "Cannot handle: #{item.inspect}"
         end
       end
+      # record collection size
       @count = @entities.size
+      # set up attachments
+      set_entities_attachments(@entities, attachments, data.try(:attachments))
     end
 
     class << self
@@ -68,6 +74,29 @@ module SqlcachedClient
       entities.map do |entity|
         entity.get_association_requests
       end
+    end
+
+    def set_entities_attachments(entities, attachments, contents)
+      if attachments.is_a?(Array) && contents.is_a?(Array)
+        entities.each_with_index do |entity, i|
+          attachment = attachments[i]
+          entity.send("#{attachment.name}=", attachment)
+          attachment.content = contents[i] if attachment.respond_to?(:content)
+        end
+      end
+    end
+
+    def store_attachments(attachment_name, server, session)
+      entities_with_a = entities.select do |entity|
+        !entity.send(attachment_name).nil?
+      end
+      server.store_attachments(
+        session,
+        server.build_store_attachments_request(
+          entities_with_a.map { |e| e.attributes },
+          entities_with_a.map { |e| e.send(attachment_name).to_save_format }
+        )
+      )
     end
   end
 end
