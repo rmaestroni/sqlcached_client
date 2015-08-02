@@ -2,6 +2,7 @@ require 'sqlcached_client/resultset'
 require 'sqlcached_client/server'
 require 'sqlcached_client/arel'
 require 'sqlcached_client/tree_visitor'
+require 'sqlcached_client/proxy_object'
 
 module SqlcachedClient
   class Entity
@@ -85,6 +86,19 @@ module SqlcachedClient
         server.session(&block)
       end
 
+
+      def transaction(&block)
+        proxy = ProxyObject.new(self)
+        srv_local = server
+        session = server.get_session
+        proxy.plug_method(:server_session) do |server_session_block|
+          instance_exec(srv_local, session, &server_session_block)
+        end
+        result = proxy.execute(srv_local, session, &block)
+        session.finish
+        result
+      end
+
       # Runs the entity query with the provided parameters
       # @return [Resultset]
       def where(params, dry_run = false)
@@ -103,7 +117,7 @@ module SqlcachedClient
           request
         else
           server_resp =
-            server.session do |server, session|
+            server_session do |server, session|
               server.run_query(session, server.build_request(
                 request.is_a?(Array) ? request : [request]
               ))
@@ -281,7 +295,7 @@ module SqlcachedClient
           else
             nil
           end
-        server.session do |server, session|
+        server_session do |server, session|
           Resultset.new(
             self,
             server.run_query(
