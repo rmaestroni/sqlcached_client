@@ -26,11 +26,9 @@ describe SqlcachedClient::Resultset do
     end
   end
 
-
   describe :build_associations do
     pending
   end
-
 
   describe :[] do
     it "should be entities[i]" do
@@ -38,5 +36,9 @@ describe SqlcachedClient::Resultset do
       r = SqlcachedClient::Resultset.new(Object, entities)
       3.times { |i| expect(r[i]).to eq(entities[i]) }
     end
+  end
+
+  describe :store_attachments do
+    pending
   end
 end

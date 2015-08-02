@@ -154,7 +154,8 @@ describe SqlcachedClient::Entity do
         entity_class.server(double(
           build_request_item: "this is the request",
           build_request: "request body",
-          session: [ [{ key: "value" }], [{ key: "value" }] ]
+          session: double(is_array?: false,
+            entities: [{ key: "value" }, { key: "value" }])
         ))
         expect(entity_class.server).to receive(:build_request_item).with(
           "foo", "bar", { baz: "biz" }, true)
@@ -222,6 +223,11 @@ describe SqlcachedClient::Entity do
 
 
   describe :build_query_tree do
+    pending
+  end
+
+
+  describe :transaction do
     pending
   end
 end

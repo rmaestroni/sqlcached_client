@@ -3,9 +3,12 @@ require 'active_support/core_ext/hash'
 module SqlcachedClient
   class Attachment
 
+    PREDICATES = ['=', '<=', '>']
+
     attr_reader :name, :conditions
     attr_accessor :content
 
+    # @param conditions [Hash] { var_1: 'value 1', var_2: 'value 2' }
     def initialize(name, conditions, content)
       @name = name
       @conditions = conditions.with_indifferent_access
@@ -17,7 +20,7 @@ module SqlcachedClient
       attr_reader :variables
 
       def add_variable(variable_name, predicate)
-        # TODO validate predicate - raise if invalid
+        raise "Invalid predicate" if !PREDICATES.include?(predicate)
         @variables = [] if @variables.nil?
         @variables << OpenStruct.new(name: variable_name, predicate: predicate)
       end
@@ -29,7 +32,6 @@ module SqlcachedClient
       self.class.variables
     end
 
-    # @param values [Hash] { var_1: 'value 1', var_2: 'value 2' }
     def to_query_format
       {
         name: name,
