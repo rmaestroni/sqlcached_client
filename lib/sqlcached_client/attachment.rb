@@ -17,7 +17,7 @@ module SqlcachedClient
 
     class << self
 
-      attr_reader :variables
+      attr_reader :variables, :entity_class
 
       def add_variable(variable_name, predicate)
         raise "Invalid predicate" if !PREDICATES.include?(predicate)
@@ -32,9 +32,17 @@ module SqlcachedClient
       self.class.variables
     end
 
+    def entity_class
+      self.class.entity_class
+    end
+
+    def entity_namespace
+      entity_class.try(:entity_namespace)
+    end
+
     def to_query_format
       {
-        name: name,
+        name: external_name,
         condition_values: Hash[
           variables.map { |v| [v.name, conditions[v.name]] }
         ]
@@ -43,12 +51,23 @@ module SqlcachedClient
 
     def to_save_format
       {
-        name: name,
+        name: external_name,
         attachment: content,
         conditions: variables.map do |v|
           "#{v.name} #{v.predicate} #{conditions[v.name]}"
         end
       }
+    end
+
+  private
+
+    def external_name
+      @external_name ||=
+        if prefix = entity_namespace.presence
+          "#{entity_namespace}::#{name}"
+        else
+          name
+        end
     end
   end
 end

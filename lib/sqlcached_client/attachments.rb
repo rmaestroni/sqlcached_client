@@ -6,11 +6,14 @@ module SqlcachedClient
     module ClassMethods
 
       def has_attachment(name, &block)
+        entity_class = self
         @attachment_classes ||= {}
         @attachment_classes[name] =
           Class.new(Attachment) do
 
             @attachment_name = name
+            @entity_class = entity_class
+
             class << self
               attr_reader :attachment_name
             end

@@ -65,4 +65,31 @@ describe SqlcachedClient::Attachment do
       end
     end
   end
+
+  describe :entity_class do
+    it "is class.entity_class" do
+      attachment = described_class.new(nil, {}, nil)
+      allow(described_class).to receive(:entity_class).and_return('foo')
+      expect(attachment.entity_class).to eq('foo')
+    end
+  end
+
+  describe :entity_namespace do
+    context "when entity_class is nil" do
+      it "is nil" do
+        attachment = described_class.new(nil, {}, nil)
+        allow(attachment).to receive(:entity_class).and_return(nil)
+        expect(attachment.entity_namespace).to be_nil
+      end
+    end
+
+    context "when entity_class is not nil" do
+      it "is entity_class.entity_namespace" do
+        attachment = described_class.new(nil, {}, nil)
+        allow(attachment).to receive(:entity_class).and_return(
+          double(entity_namespace: 'foo'))
+        expect(attachment.entity_namespace).to eq('foo')
+      end
+    end
+  end
 end
