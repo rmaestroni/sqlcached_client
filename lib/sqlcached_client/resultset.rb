@@ -81,7 +81,7 @@ module SqlcachedClient
         entities.each_with_index do |entity, i|
           attachment = attachments[i]
           entity.send("#{attachment.name}=", attachment)
-          attachment.content = contents[i] if attachment.respond_to?(:content)
+          attachment.content = contents[i] if attachment.respond_to?(:content=)
         end
       end
     end

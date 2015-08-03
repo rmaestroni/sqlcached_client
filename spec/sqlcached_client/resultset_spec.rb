@@ -38,7 +38,42 @@ describe SqlcachedClient::Resultset do
     end
   end
 
+  describe :set_entities_attachments do
+    let(:resultset) { SqlcachedClient::Resultset.new(nil, nil) }
+
+    let(:entities) do
+      [double(:attach1=)]
+    end
+
+    let(:attachment) { double(:content=, name: 'attach1') }
+
+    it "sets each attachment to the corresponding entity and saves the content" do
+      expect(entities.first).to receive(:attach1=).with(attachment)
+      expect(attachment).to receive(:content=).with('content')
+      resultset.set_entities_attachments(entities, [attachment], ['content'])
+    end
+  end
+
   describe :store_attachments do
-    pending
+    let(:resultset) { SqlcachedClient::Resultset.new(nil, nil) }
+
+    let(:entities) do
+      [
+        double(att1: double(to_save_format: 'value a'), attributes: 'attrs a'),
+        double(att1: double(to_save_format: 'value b'), attributes: 'attrs b')
+      ]
+    end
+
+    let(:server) { double }
+
+    it "calls server.store_attachments" do
+      expect(server).to receive(:build_store_attachments_request).with(
+        ['attrs a', 'attrs b'], ['value a', 'value b']
+      ).and_return('attachment request')
+      expect(server).to receive(:store_attachments).with('session',
+        'attachment request')
+      allow(resultset).to receive(:entities).and_return(entities)
+      resultset.store_attachments(:att1, server, 'session')
+    end
   end
 end
