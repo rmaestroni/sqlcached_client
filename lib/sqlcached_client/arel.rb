@@ -41,20 +41,27 @@ module SqlcachedClient
     end # method build_arel
   end # module Arel
 
+
 private
+
+  class DummyConnection < ::ActiveRecord::Base
+  end
 
   class ArelWrapper
     include Singleton
 
+    attr_reader :arel_module
+
     def initialize
-      ::Arel::Table.engine = ::ActiveRecord::Base.establish_connection(
+      @arel_module = ::Arel.clone
+      arel_module.const_set(:Table, ::Arel::Table.clone)
+      arel_module::Table.engine = DummyConnection.establish_connection(
         adapter: :nulldb)
     end
 
     class << self
       def arel_module
-        instance
-        ::Arel
+        instance.arel_module
       end
     end
   end # class ArelWrapper
